@@ -1,0 +1,55 @@
+name: Simple release tool
+description: some text here
+author: slowpeek
+
+inputs:
+  dist:
+    description: >
+      Multiline list of files to include in release.
+    required: false
+    default: ''
+
+  versioned:
+    description: >
+      Multiline list of files to set version in and include in release.
+      This list is merged into 'dist' so there is no need in mentioning
+      the same file in both places.
+    required: false
+    default: ''
+
+  do-versioned:
+    description: >
+      If disabled, 'versioned' files would be included in release
+      unmodified as if they were listed in 'dist' instead.
+    required: false
+    default: yes
+
+  do-versioned-bump:
+    description: >
+      If enabled, a commit will be pushed to the repository with
+      'versioned' files having their version set to current tag with
+      '+dev' suffix.
+    required: false
+    default: yes
+
+  do-dist-default:
+    description: >
+      If enabled, some well known files like LICENSE are included in
+      release.
+    required: false
+    default: yes
+
+  do-docs:
+    description: >
+      If enabled, some well known docs like README and CHANGELOG are
+      included in release. It works with docs in 'org' and 'md'
+      formats, 'org' takes priority if both exist. Docs are converted
+      into html and plaintext versions.
+    required: false
+    default: yes
+
+runs:
+  using: composite
+  steps:
+    - run: ${{ github.action_path }}/release.sh
+      shell: bash
