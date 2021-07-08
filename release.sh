@@ -32,7 +32,7 @@ readarray_filtered () {
 
     # shellcheck disable=SC2034
     readarray -t result < <(
-        sed -E 's/^[[:space:]]+|[[:space:]]+$//;/./!dl' |
+        sed -E 's/^[[:space:]]+|[[:space:]]+$//;/./!d' |
             sort -u
     )
 }
