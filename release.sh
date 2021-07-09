@@ -151,11 +151,12 @@ release_notes () {
 # Set version='${TAG}+dev' for $VERSIONED files and commit.
 bump_dev_version () {
     set_version "${TAG}+dev"
-    readarray -t changed < <(git diff --name-only)
+    readarray -t changed < <(git diff --name-only "${VERSIONED[@]}")
 
     if [[ -v changed ]]; then
         git config --local user.name "github-actions[bot]"
-        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
         git add "${changed[@]}"
         git commit -m "Post-release dev version bump"
