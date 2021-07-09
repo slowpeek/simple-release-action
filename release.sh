@@ -165,8 +165,6 @@ bump_dev_version () {
 
 install_reqs
 
-env | grep INPUT_
-
 [[ ${INPUT_DO_DIST_DEFAULT,} == y* ]] || DIST_DEFAULT=()
 [[ ${INPUT_DO_DOCS,} == y* ]] || DOCS=()
 
