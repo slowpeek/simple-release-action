@@ -178,7 +178,10 @@ readarray_filtered VERSIONED <<< "$INPUT_VERSIONED"
 
 check_files
 
-[[ ${INPUT_DO_VERSIONED,} == y* ]] || VERSIONED=()
+if [[ ${INPUT_DO_VERSIONED,} == n* ]]; then
+    VERSIONED=()
+    INPUT_DO_VERSIONED_BUMP=n
+fi
 
 mkdir dist
 files_to_dist
@@ -196,6 +199,4 @@ tar czf "$NAME".tar.gz "$NAME"
 
 gh release create "$TAG" --notes "$(release_notes)" "$NAME".tar.gz
 
-if [[ -v VERSIONED && ${INPUT_DO_VERSIONED_BUMP,} == y* ]]; then
-    bump_dev_version
-fi
+[[ ${INPUT_DO_VERSIONED_BUMP,} == n* ]] || bump_dev_version
