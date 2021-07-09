@@ -6,7 +6,7 @@ inputs:
   dist:
     description: >
       Multiline list of files to include in release.
-    required: false
+    required: true
     default: ''
 
   versioned:
@@ -14,14 +14,14 @@ inputs:
       Multiline list of files to set version in and include in release.
       This list is merged into 'dist' so there is no need in mentioning
       the same file in both places.
-    required: false
+    required: true
     default: ''
 
   do-versioned:
     description: >
       If disabled, 'versioned' files would be included in release
       unmodified as if they were listed in 'dist' instead.
-    required: false
+    required: true
     default: yes
 
   do-versioned-bump:
@@ -29,14 +29,14 @@ inputs:
       If enabled, a commit will be pushed to the repository with
       'versioned' files having their version set to current tag with
       '+dev' suffix.
-    required: false
+    required: true
     default: yes
 
   do-dist-default:
     description: >
       If enabled, some well known files like LICENSE are included in
       release.
-    required: false
+    required: true
     default: yes
 
   do-docs:
@@ -45,7 +45,7 @@ inputs:
       included in release. It works with docs in 'org' and 'md'
       formats, 'org' takes priority if both exist. Docs are converted
       into html and plaintext versions.
-    required: false
+    required: true
     default: yes
 
 runs:
