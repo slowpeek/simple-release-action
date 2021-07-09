@@ -57,6 +57,6 @@ runs:
         INPUT_DIST: ${{ inputs.dist }}
         INPUT_VERSIONED: ${{ inputs.versioned }}
         INPUT_DO_VERSIONED: ${{ inputs.do-versioned }}
-        INPUT_DO_VERSIONED_BUMP: ${{ inputs.do-versioned_bump }}
-        INPUT_DO_DIST_DEFAULT: ${{ inputs.do_dist_default }}
-        INPUT_DO_DOCS: ${{ inputs.do_docs }}
+        INPUT_DO_VERSIONED_BUMP: ${{ inputs.do-versioned-bump }}
+        INPUT_DO_DIST_DEFAULT: ${{ inputs.do-dist-default }}
+        INPUT_DO_DOCS: ${{ inputs.do-docs }}
