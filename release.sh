@@ -61,16 +61,21 @@ doc2text () {
 # org -> html, text
 # md -> html, text
 docs_to_dist () {
-    local doc
+    local doc ext format
 
     for doc in "${DOCS[@]}"; do
         if [[ -f $doc.org ]]; then
-            doc2html org "$NAME :: $doc" <"$doc".org >dist/"$doc".html
-            doc2text org <"$doc".org >dist/"$doc"
+            ext=org
+            format=org
         elif [[ -f $doc.md ]]; then
-            doc2html gfm "$NAME :: $doc" <"$doc".md >dist/"$doc".html
-            doc2text gfm <"$doc".md >dist/"$doc"
+            ext=md
+            format=gfm
+        else
+            continue
         fi
+
+        doc2html "$format" "$NAME :: $doc" <"$doc.$ext" >dist/"$doc".html
+        doc2text "$format" <"$doc.$ext" >dist/"$doc"
     done
 }
 
