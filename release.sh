@@ -43,8 +43,7 @@ install_reqs () {
 
 # args: tag
 set_version () {
-    [[ ! -v VERSIONED ]] ||
-        sed -Ei "0,/^(([A-Z]+_)+VERSION)=.+/s//\\1=$1/" "${VERSIONED[@]}"
+    sed -Ei "0,/^(([A-Z]+_)+VERSION)=.+/s//\\1=$1/" "${VERSIONED[@]}"
 }
 
 # args: format html_title
@@ -187,9 +186,11 @@ check_files
 mkdir dist
 files_to_dist
 
-cd dist
-set_version "$TAG"
-cd ..
+if [[ -v VERSIONED ]]; then
+    cd dist
+    set_version "$TAG"
+    cd ..
+fi
 
 docs_to_dist
 
@@ -198,4 +199,6 @@ tar czf "$NAME".tar.gz "$NAME"
 
 gh release create "$TAG" --notes "$(release_notes)" "$NAME".tar.gz
 
-[[ ${INPUT_DO_VERSIONED_BUMP,} == n* ]] || bump_dev_version
+if [[ -v VERSIONED && ${INPUT_DO_VERSIONED_BUMP,} == y* ]]; then
+    bump_dev_version
+fi
