@@ -30,7 +30,7 @@ inputs:
       'versioned' files having their version set to current tag with
       '+dev' suffix.
     required: true
-    default: yes
+    default: no
 
   do-dist-default:
     description: >
