@@ -23,6 +23,21 @@ bye () {
     exit 1
 }
 
+# Check if $1 starts with $2. Case incensitive.
+starts_with () {
+    [[ ${1,,} == "${2,,}"* ]]
+}
+
+# Check if $1 starts with [yY]
+on () {
+    starts_with "$1" y
+}
+
+# Check if $1 starts with [nN]
+off () {
+    starts_with "$1" n
+}
+
 # args: result
 #
 # Trim and store not empty uniq lines from stdin into array
@@ -170,15 +185,15 @@ bump_dev_version () {
 
 install_reqs
 
-[[ ${INPUT_DO_DIST_DEFAULT,} == y* ]] || DIST_DEFAULT=()
-[[ ${INPUT_DO_DOCS,} == y* ]] || DOCS=()
+on "$INPUT_DO_DIST_DEFAULT" || DIST_DEFAULT=()
+on "$INPUT_DO_DOCS" || DOCS=()
 
 readarray_filtered DIST <<< "$INPUT_DIST"
 readarray_filtered VERSIONED <<< "$INPUT_VERSIONED"
 
 check_files
 
-if [[ ${INPUT_DO_VERSIONED,} == n* ]]; then
+if off "$INPUT_DO_VERSIONED"; then
     VERSIONED=()
     INPUT_DO_VERSIONED_BUMP=n
 fi
@@ -199,4 +214,4 @@ tar czf "$NAME".tar.gz "$NAME"
 
 gh release create "$TAG" --notes "$(release_notes)" "$NAME".tar.gz
 
-[[ ${INPUT_DO_VERSIONED_BUMP,} == n* ]] || bump_dev_version
+off "$INPUT_DO_VERSIONED_BUMP" || bump_dev_version
