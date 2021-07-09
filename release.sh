@@ -41,7 +41,7 @@ off () {
 # args: result
 #
 # Trim and store not empty uniq lines from stdin into array
-# @result. The order of lines is not preserved.
+# ${!result}. The order of lines is not preserved.
 readarray_filtered () {
     local -n result=$1
 
