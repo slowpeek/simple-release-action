@@ -174,14 +174,11 @@ install_reqs
 [[ ${INPUT_DO_DOCS,} == y* ]] || DOCS=()
 
 readarray_filtered DIST <<< "$INPUT_DIST"
-
-if [[ ${INPUT_DO_VERSIONED,} == y* ]]; then
-    readarray_filtered VERSIONED <<< "$INPUT_VERSIONED"
-else
-    VERSIONED=()
-fi
+readarray_filtered VERSIONED <<< "$INPUT_VERSIONED"
 
 check_files
+
+[[ ${INPUT_DO_VERSIONED,} == y* ]] || VERSIONED=()
 
 mkdir dist
 files_to_dist
