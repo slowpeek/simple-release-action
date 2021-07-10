@@ -3,50 +3,21 @@ description: some text here
 author: slowpeek
 
 inputs:
-  dist:
+  files:
     description: >
-      Multiline list of files to include in release.
+      Multiline list of files to include in release. Per file special
+      treatment can be toggled with flags. Separate flags with plus
+      sign like 'README.org +doc +toc'.
     required: true
     default: ''
 
-  versioned:
+  bump-version:
     description: >
-      Multiline list of files to set version in and include in release.
-      This list is merged into 'dist' so there is no need in mentioning
-      the same file in both places.
-    required: true
-    default: ''
-
-  do-versioned:
-    description: >
-      If disabled, 'versioned' files would be included in release
-      unmodified as if they were listed in 'dist' instead.
-    required: true
-    default: yes
-
-  do-versioned-bump:
-    description: >
-      If enabled, a commit will be pushed to the repository with
-      'versioned' files having their version set to current tag with
-      '+dev' suffix.
+      If enabled, a commit will be pushed to the repository with files
+      possessing 'v' flag having their version set to the current tag
+      with '+dev' suffix.
     required: true
     default: no
-
-  do-dist-default:
-    description: >
-      If enabled, some well known files like LICENSE are included in
-      release.
-    required: true
-    default: yes
-
-  do-docs:
-    description: >
-      If enabled, some well known docs like README and CHANGELOG are
-      included in release. It works with docs in 'org' and 'md'
-      formats, 'org' takes priority if both exist. Docs are converted
-      into html and plaintext versions.
-    required: true
-    default: yes
 
 runs:
   using: composite
@@ -54,9 +25,5 @@ runs:
     - run: ${{ github.action_path }}/release.sh
       shell: bash
       env:
-        INPUT_DIST: ${{ inputs.dist }}
-        INPUT_VERSIONED: ${{ inputs.versioned }}
-        INPUT_DO_VERSIONED: ${{ inputs.do-versioned }}
-        INPUT_DO_VERSIONED_BUMP: ${{ inputs.do-versioned-bump }}
-        INPUT_DO_DIST_DEFAULT: ${{ inputs.do-dist-default }}
-        INPUT_DO_DOCS: ${{ inputs.do-docs }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_BUMP_VERSION: ${{ inputs.bump-version }}

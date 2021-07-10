@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -eu
+shopt -s extglob
 
 PROJECT=${GITHUB_REPOSITORY##*/} # Last part of repo name like
                                  # 'project' in 'user/project'.
@@ -8,120 +9,163 @@ PROJECT=${GITHUB_REPOSITORY##*/} # Last part of repo name like
 TAG=${GITHUB_REF##*/}           # Last part of ref.
 NAME=${PROJECT}-${TAG}          # Full project name with version.
 
-DIST_DEFAULT=(LICENSE)          # Files to include in release by
-                                # default. Not existing ones are
-                                # skipped.
-
-DOCS=(README CHANGELOG)         # File names without ext to process
-                                # with docs_to_dist() and include in
-                                # release. The function checks for
-                                # 'org' and 'md' ext itself. Not
-                                # existing ones are skipped.
+VERSION_MATCH='^(([A-Z]+_)+VERSION)=.+'
 
 bye () {
-    printf '%s\n' "$1"
+    printf '%s\n' "$*"
     exit 1
 }
 
-# Check if $1 starts with $2. Case incensitive.
-starts_with () {
-    [[ ${1,,} == "${2,,}"* ]]
+# Install pandoc on first call.
+pandoc () {
+    unset -f pandoc
+    hash pandoc 2>/dev/null || sudo apt-get -y install pandoc </dev/null >&2
+    pandoc "$@"
 }
 
-# Check if $1 starts with [yY]
-on () {
-    starts_with "$1" y
+# Parse $INPUT_FILES into $FILES and $FLAGGED_* global arrays.
+parse_input_files () {
+    declare -g FILES=()
+
+    local -A _flags=([v]=t [doc]=t [toc]=t)
+    local flag
+
+    # Create global FLAGGED_* arrays.
+    for flag in "${!_flags[@]}"; do
+        declare -g -A FLAGGED_"${flag^^}"='()'
+    done
+
+    local -A map
+    local s file flags=()
+
+    while read -r s; do
+        # Trim.
+        s=${s#${s%%[![:space:]]*}}
+        s=${s%${s##*[![:space:]]}}
+
+        # Skip empty lines.
+        [[ -n $s ]] || continue
+
+        # Remove spaces around '+'.
+        s=${s//*([[:space:]])+*([[:space:]])/+}
+
+        # Remove repeated '+'.
+        s=${s//++(+)/+}
+
+        file=${s%%+*}
+
+        [[ -n $file ]] || continue
+
+        [[ ! -v map[$file] ]] || bye "${file@Q} is listed more than once."
+        map[$file]=t
+
+        [[ -f $file ]] || bye "File not found: ${file@Q}"
+
+        s=${s:${#file}+1}
+        IFS=+ read -r -a flags <<< "${s,,}"
+
+        for flag in "${flags[@]}"; do
+            [[ -v _flags[$flag] ]] || bye "Unknown flag: ${flag@Q}"
+
+            local -n flagged=FLAGGED_${flag^^}
+            # shellcheck disable=SC2034
+            flagged[$file]=t
+        done
+    done <<< "$INPUT_FILES"
+
+    FILES=("${!map[@]}")
 }
 
-# Check if $1 starts with [nN]
-off () {
-    starts_with "$1" n
+# Check flags consistency.
+check_flags () {
+    local file ext key
+    local -A map
+
+    # Check ext for 'doc' flagged files.
+    for file in "${!FLAGGED_DOC[@]}"; do
+        [[ $file == *.* ]] && ext=${file##*.} || ext=
+
+        [[ $ext == @(org|md) ]] ||
+            bye "${file@Q}: 'doc' flag only applies to 'org' and 'md' files."
+
+        key=${file%.*}
+
+        [[ ! -v map[$key] ]] ||
+            bye "${file@Q}, ${map[$key]@Q}: cant apply 'doc' flag to both."
+
+        map[$key]=$file
+    done
+
+    # Check if html and plaintext versions of 'doc' flagged files
+    # override any other file.
+    for file in "${FILES[@]}"; do
+        [[ $file == *.* ]] && ext=${file##*.} || ext=
+
+        [[ -z $ext || $ext == html ]] || continue
+
+        key=${file%.*}
+
+        if [[ -v map[$key] ]]; then
+            local type=html
+            [[ $ext == html ]] || type=plaintext
+
+            bye "${map[$key]@Q} has 'doc' flag." \
+                "Its generated $type version would overwrite ${file@Q}"
+        fi
+    done
+
+    # shellcheck disable=SC2153
+    for file in "${!FLAGGED_TOC[@]}"; do
+        [[ -v FLAGGED_DOC[$file] ]] ||
+            bye "${file@Q}: 'toc' flag requires 'doc' flag."
+    done
+
+    # Check if 'v' flagged files match $VERSION_MATCH.
+    for file in "${!FLAGGED_V[@]}"; do
+        test_version "$file" ||
+            bye "${file@Q} has 'v' flag but its content" \
+                "doesnt match ${VERSION_MATCH}"
+    done
 }
 
-# args: result
-#
-# Trim and store not empty uniq lines from stdin into array
-# ${!result}. The order of lines is not preserved.
-readarray_filtered () {
-    local -n result=$1
-
-    # shellcheck disable=SC2034
-    readarray -t result < <(
-        sed -E 's/^[[:space:]]+|[[:space:]]+$//;/./!d' |
-            sort -u
-    )
-}
-
-install_reqs () {
-    hash pandoc 2>/dev/null || sudo apt-get -y install pandoc
+# args: path
+test_version () {
+    grep -qPm1 "$VERSION_MATCH" "$1"
 }
 
 # args: tag
 set_version () {
-    sed -Ei "0,/^(([A-Z]+_)+VERSION)=.+/s//\\1=$1/" "${VERSIONED[@]}"
+    sed -Ei "0,/$VERSION_MATCH/s//\\1=$1/" "${!FLAGGED_V[@]}"
 }
 
-# args: format html_title
-doc2html () {
-    pandoc -f "$1" -t html -s --toc --metadata pagetitle="$2"
-}
-
-# args: format
-doc2text () {
-    pandoc -f "$1" -t plain
-}
-
-# Copy $DOCS into dist/ with format conversion:
-# org -> html, text
-# md -> html, text
+# Copy 'doc' flagged files into dist/ as html and plaintext.
 docs_to_dist () {
-    local doc ext format
+    local file doc ext format opts
 
-    for doc in "${DOCS[@]}"; do
-        if [[ -f $doc.org ]]; then
-            ext=org
-            format=org
-        elif [[ -f $doc.md ]]; then
-            ext=md
-            format=gfm
-        else
-            continue
-        fi
+    for file in "${!FLAGGED_DOC[@]}"; do
+        ext=${file##*.} doc=${file%.*}
+        [[ $ext == org ]] && format=org || format=gfm
 
-        doc2html "$format" "$NAME :: $doc" <"$doc.$ext" >dist/"$doc".html
-        doc2text "$format" <"$doc.$ext" >dist/"$doc"
+        # Plaintext version.
+        pandoc -f "$format" -t plain <"$file" >dist/"$doc"
+
+        # Html version.
+        opts=(-f "$format" -t html -s
+              --metadata "pagetitle=$NAME :: $doc")
+
+        # Optionally enable table of contents.
+        [[ ! -v FLAGGED_TOC[$file] ]] || opts+=(--toc)
+
+        pandoc "${opts[@]}" <"$file" >dist/"$doc".html
     done
 }
 
-# Merge $DIST_DEFAULT, $VERSIONED into $DIST. Check file existence on
-# the go.
-check_files () {
-    local -A map=()
-    local path
-
-    # Extract existing pathes from $DIST_DEFAULT into $map.
-    for path in "${DIST_DEFAULT[@]}"; do
-        ! [[ -f $path ]] || map[$path]=t
-    done
-
-    # Merge $DIST, $VERSIONED into $map.
-    for path in "${DIST[@]}" "${VERSIONED[@]}"; do
-        if [[ ! -v map[$path] ]]; then
-            [[ -f $path ]] || bye "No such file: ${path@Q}"
-
-            map[$path]=t
-        fi
-    done
-
-    DIST=("${!map[@]}")         # No matter the order.
-}
-
-# Copy $DIST files to dist/.
+# Copy $FILES to dist/ but 'doc' flagged ones.
 files_to_dist () {
     local path
 
-    for path in "${DIST[@]}"; do
-        install -D "$path" dist/"$path"
+    for path in "${FILES[@]}"; do
+        [[ -v FLAGGED_DOC[$path] ]] || install -D "$path" dist/"$path"
     done
 }
 
@@ -167,10 +211,10 @@ release_notes () {
     done
 }
 
-# Set version='${TAG}+dev' for $VERSIONED files and commit.
+# Set version='${TAG}+dev' for 'v' flagged files and commit.
 bump_dev_version () {
     set_version "${TAG}+dev"
-    readarray -t changed < <(git diff --name-only "${VERSIONED[@]}")
+    readarray -t changed < <(git diff --name-only "${!FLAGGED_V[@]}")
 
     if [[ -v changed ]]; then
         git config --local user.name "github-actions[bot]"
@@ -183,25 +227,16 @@ bump_dev_version () {
     fi
 }
 
-install_reqs
+parse_input_files
 
-on "$INPUT_DO_DIST_DEFAULT" || DIST_DEFAULT=()
-on "$INPUT_DO_DOCS" || DOCS=()
+[[ -v FILES ]] || bye 'Files list is empty.'
 
-readarray_filtered DIST <<< "$INPUT_DIST"
-readarray_filtered VERSIONED <<< "$INPUT_VERSIONED"
-
-check_files
-
-if off "$INPUT_DO_VERSIONED"; then
-    VERSIONED=()
-    INPUT_DO_VERSIONED_BUMP=n
-fi
+check_flags
 
 mkdir dist
 files_to_dist
 
-if [[ -v VERSIONED ]]; then
+if [[ -v FLAGGED_V ]]; then
     cd dist
     set_version "$TAG"
     cd ..
@@ -214,4 +249,4 @@ tar czf "$NAME".tar.gz "$NAME"
 
 gh release create "$TAG" --notes "$(release_notes)" "$NAME".tar.gz
 
-off "$INPUT_DO_VERSIONED_BUMP" || bump_dev_version
+[[ ${INPUT_BUMP_VERSION,} == n* ]] || bump_dev_version
