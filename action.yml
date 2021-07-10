@@ -27,3 +27,4 @@ runs:
       env:
         INPUT_FILES: ${{ inputs.files }}
         INPUT_BUMP_VERSION: ${{ inputs.bump-version }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
