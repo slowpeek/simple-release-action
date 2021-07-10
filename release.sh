@@ -236,7 +236,7 @@ check_flags
 mkdir dist
 files_to_dist
 
-if [[ -v FLAGGED_V ]]; then
+if ((${#FLAGGED_V[@]} > 0)); then
     cd dist
     set_version "$TAG"
     cd ..
