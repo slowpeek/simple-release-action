@@ -240,6 +240,9 @@ if ((${#FLAGGED_V[@]} > 0)); then
     cd dist
     set_version "$TAG"
     cd ..
+else
+    # Disable 'bump-version' if there are no 'v' flagged files.
+    INPUT_BUMP_VERSION=n
 fi
 
 docs_to_dist
