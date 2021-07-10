@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 
 set -eu
@@ -16,11 +17,29 @@ bye () {
     exit 1
 }
 
+# args: a
+#
+# Check if array ${!a} is empty.
+empty () {
+    [[ $1 == a ]] || local -n a=$1
+    ((${#a[@]} == 0))
+}
+
 # Install pandoc on first call.
 pandoc () {
     unset -f pandoc
     hash pandoc 2>/dev/null || sudo apt-get -y install pandoc </dev/null >&2
     pandoc "$@"
+}
+
+# args: s
+#
+# Trim whitespace in ${!s}
+trim () {
+    [[ $1 == s ]] || local -n s=$1
+
+    s=${s#${s%%[![:space:]]*}}
+    s=${s%${s##*[![:space:]]}}
 }
 
 # Parse $INPUT_FILES into $FILES and $FLAGGED_* global arrays.
@@ -39,9 +58,7 @@ parse_input_files () {
     local s file flags=()
 
     while read -r s; do
-        # Trim.
-        s=${s#${s%%[![:space:]]*}}
-        s=${s%${s##*[![:space:]]}}
+        trim s
 
         # Skip empty lines.
         [[ -n $s ]] || continue
@@ -76,8 +93,8 @@ parse_input_files () {
     FILES=("${!map[@]}")
 }
 
-# Check flags consistency.
-check_flags () {
+# Check input data consistency.
+check_input () {
     local file ext key
     local -A map
 
@@ -126,6 +143,16 @@ check_flags () {
             bye "${file@Q} has 'v' flag but its content" \
                 "doesnt match ${VERSION_MATCH}"
     done
+
+    # Check 'bump-version' value.
+    if empty FLAGGED_V; then
+        # It is useless if there are no 'v' flagged files.
+        INPUT_BUMP_VERSION=
+    else
+        trim INPUT_BUMP_VERSION
+        [[ ! $INPUT_BUMP_VERSION == *[[:space:]]* ]] ||
+            bye "'bump-version' value contains whitespace."
+    fi
 }
 
 # args: path
@@ -211,9 +238,10 @@ release_notes () {
     done
 }
 
-# Set version='${TAG}+dev' for 'v' flagged files and commit.
+# Set version='${TAG}${INPUT_BUMP_VERSION}' for 'v' flagged files and
+# commit.
 bump_dev_version () {
-    set_version "${TAG}+dev"
+    set_version "${TAG}${INPUT_BUMP_VERSION}"
     readarray -t changed < <(git diff --name-only "${!FLAGGED_V[@]}")
 
     if [[ -v changed ]]; then
@@ -231,18 +259,15 @@ parse_input_files
 
 [[ -v FILES ]] || bye 'Files list is empty.'
 
-check_flags
+check_input
 
 mkdir dist
 files_to_dist
 
-if ((${#FLAGGED_V[@]} > 0)); then
+if ! empty FLAGGED_V; then
     cd dist
     set_version "$TAG"
     cd ..
-else
-    # Disable 'bump-version' if there are no 'v' flagged files.
-    INPUT_BUMP_VERSION=n
 fi
 
 docs_to_dist
@@ -252,4 +277,4 @@ tar czf "$NAME".tar.gz "$NAME"
 
 gh release create "$TAG" --notes "$(release_notes)" "$NAME".tar.gz
 
-[[ ${INPUT_BUMP_VERSION,} == n* ]] || bump_dev_version
+[[ -z $INPUT_BUMP_VERSION ]] || bump_dev_version

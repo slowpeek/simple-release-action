@@ -13,11 +13,11 @@ inputs:
 
   bump-version:
     description: >
-      If enabled, a commit will be pushed to the repository with files
-      possessing 'v' flag having their version set to the current tag
-      with '+dev' suffix.
+      If not empty, a commit will be pushed to the repository with 'v'
+      flagged files having their versions set to the current tag
+      postfixed with this option's value.
     required: true
-    default: no
+    default: ''
 
 runs:
   using: composite
