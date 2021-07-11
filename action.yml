@@ -6,8 +6,8 @@ inputs:
   files:
     description: >
       Multiline list of files to include in release. Per file special
-      treatment can be toggled with flags. Separate flags with plus
-      sign like 'README.org +doc +toc'.
+      treatment can be toggled with flags. Separate flags with tilde
+      like 'README.org ~doc ~toc'.
     required: true
     default: ''
 

@@ -71,13 +71,13 @@ parse_input_files () {
         # Skip empty lines.
         [[ -n $s ]] || continue
 
-        # Remove spaces around '+'.
-        s=${s//*([[:space:]])+*([[:space:]])/+}
+        # Remove spaces around '~'.
+        s=${s//*([[:space:]])\~*([[:space:]])/\~}
 
-        # Remove repeated '+'.
-        s=${s//++(+)/+}
+        # Squeeze repeated '~'.
+        s=${s//\~+(\~)/\~}
 
-        file=${s%%+*}
+        file=${s%%\~*}
 
         [[ -n $file ]] || continue
 
@@ -87,7 +87,7 @@ parse_input_files () {
         [[ -f $file ]] || bye "File not found: ${file@Q}"
 
         s=${s:${#file}+1}
-        IFS=+ read -r -a flags <<< "${s,,}"
+        IFS=\~ read -r -a flags <<< "${s,,}"
 
         for flag in "${flags[@]}"; do
             [[ -v _flags[$flag] ]] || bye "Unknown flag: ${flag@Q}"
