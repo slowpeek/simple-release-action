@@ -41,6 +41,15 @@ trim () {
     s=${s%${s##*[![:space:]]}}
 }
 
+# args: ext path
+#
+# Set ${!ext} to filename ext of $path.
+fn_ext () {
+    [[ $1 == ext ]] || local -n ext=$1
+    local _fn=${2##*/}
+    [[ $_fn == *.* ]] && ext=${_fn##*.} || ext=
+}
+
 # Parse $INPUT_FILES into $FILES and $FLAGGED_* global arrays.
 parse_input_files () {
     declare -g FILES=()
@@ -99,7 +108,7 @@ check_input () {
 
     # Check ext for 'doc' flagged files.
     for file in "${!FLAGGED_DOC[@]}"; do
-        [[ $file == *.* ]] && ext=${file##*.} || ext=
+        fn_ext ext "$file"
 
         [[ $ext == @(org|md) ]] ||
             bye "${file@Q}: 'doc' flag only applies to 'org' and 'md' files."
@@ -115,7 +124,7 @@ check_input () {
     # Check if html and plaintext versions of 'doc' flagged files
     # override any other file.
     for file in "${FILES[@]}"; do
-        [[ $file == *.* ]] && ext=${file##*.} || ext=
+        fn_ext ext "$file"
 
         [[ -z $ext || $ext == html ]] || continue
 
@@ -169,20 +178,23 @@ docs_to_dist () {
     local file doc ext format opts
 
     for file in "${!FLAGGED_DOC[@]}"; do
-        ext=${file##*.} doc=${file%.*}
+        fn_ext ext "$file"
         [[ $ext == org ]] && format=org || format=gfm
 
+        doc=${file%.*}
+
         # Plaintext version.
-        pandoc -f "$format" -t plain <"$file" >dist/"$doc"
+        pandoc -f "$format" -t plain "$file" |
+            install -D /dev/stdin dist/"$doc"
 
         # Html version.
-        opts=(-f "$format" -t html -s
-              --metadata "pagetitle=$NAME :: $doc")
+        opts=(-f "$format" -t html -s --metadata "pagetitle=$NAME :: $doc")
 
         # Optionally enable table of contents.
         [[ ! -v FLAGGED_TOC[$file] ]] || opts+=(--toc)
 
-        pandoc "${opts[@]}" <"$file" >dist/"$doc".html
+        pandoc "${opts[@]}" "$file" |
+            install -D /dev/stdin dist/"$doc".html
     done
 }
 
